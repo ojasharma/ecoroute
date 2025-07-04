@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+osmnx
+networkx
+googlemaps
+requests
+pandas
+polyline
