@@ -3,14 +3,18 @@
 import React, { useState } from "react";
 import { GeoapifyContext } from "@geoapify/react-geocoder-autocomplete";
 import axios from "axios";
-import MapControls from "@/components/MapControls"; // Adjust path if needed
-import MapDisplay from "@/components/MapDisplay"; // Adjust path if needed
+import { LatLngTuple } from "leaflet";
+import MapControls from "@/components/MapControls";
+import MapDisplay from "@/components/MapDisplay";
 
 export default function Page() {
   const [source, setSource] = useState<any>(null);
   const [destination, setDestination] = useState<any>(null);
   const [vehicle, setVehicle] = useState("motorcycle");
   const [loading, setLoading] = useState(false);
+
+  const [ecoRoute, setEcoRoute] = useState<LatLngTuple[]>([]);
+  const [googleRoute, setGoogleRoute] = useState<LatLngTuple[]>([]);
 
   const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
 
@@ -35,9 +39,13 @@ export default function Page() {
         vehicle,
       })
       .then((response) => {
-        console.log("Route response:", response.data);
-        // You'll likely want to do something with the route data here,
-        // such as drawing it on the map.
+        const { eco_route, google_route } = response.data;
+
+        // Cast to LatLngTuple[] explicitly
+        setEcoRoute(eco_route as LatLngTuple[]);
+        setGoogleRoute(google_route as LatLngTuple[]);
+
+        console.log("Routes received.");
       })
       .catch((error) => {
         console.error("Error fetching route:", error);
@@ -84,6 +92,8 @@ export default function Page() {
               source={source}
               destination={destination}
               loading={loading}
+              ecoRoute={ecoRoute}
+              googleRoute={googleRoute}
             />
           </div>
         </div>

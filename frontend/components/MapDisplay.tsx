@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import L, { Marker } from "leaflet";
+import L, { Marker, LatLngTuple } from "leaflet";
 import "leaflet/dist/leaflet.css";
-import LoadingOverlay from "./LoadingOverlay"; // Import the new component
+import LoadingOverlay from "./LoadingOverlay";
 
 interface MapDisplayProps {
   source: any;
   destination: any;
   loading: boolean;
+  ecoRoute: LatLngTuple[];
+  googleRoute: LatLngTuple[];
 }
 
 const createCustomIcon = (
@@ -35,11 +37,15 @@ export default function MapDisplay({
   source,
   destination,
   loading,
+  ecoRoute,
+  googleRoute,
 }: MapDisplayProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const sourceMarkerRef = useRef<Marker | null>(null);
   const destinationMarkerRef = useRef<Marker | null>(null);
+  const ecoPolylineRef = useRef<L.Polyline | null>(null);
+  const googlePolylineRef = useRef<L.Polyline | null>(null);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -58,19 +64,23 @@ export default function MapDisplay({
     return () => {
       if (sourceMarkerRef.current) {
         sourceMarkerRef.current.remove();
-        sourceMarkerRef.current = null;
       }
       if (destinationMarkerRef.current) {
         destinationMarkerRef.current.remove();
-        destinationMarkerRef.current = null;
+      }
+      if (ecoPolylineRef.current) {
+        map.removeLayer(ecoPolylineRef.current);
+      }
+      if (googlePolylineRef.current) {
+        map.removeLayer(googlePolylineRef.current);
       }
       map.remove();
     };
   }, []);
 
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
+    if (!map) return;
 
     if (sourceMarkerRef.current) {
       sourceMarkerRef.current.remove();
@@ -97,8 +107,8 @@ export default function MapDisplay({
   }, [source, destination]);
 
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
+    if (!map) return;
 
     if (destinationMarkerRef.current) {
       destinationMarkerRef.current.remove();
@@ -130,6 +140,37 @@ export default function MapDisplay({
     }
   }, [destination, source]);
 
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (ecoPolylineRef.current) {
+      map.removeLayer(ecoPolylineRef.current);
+      ecoPolylineRef.current = null;
+    }
+
+    if (googlePolylineRef.current) {
+      map.removeLayer(googlePolylineRef.current);
+      googlePolylineRef.current = null;
+    }
+
+    if (ecoRoute && ecoRoute.length > 0) {
+      ecoPolylineRef.current = L.polyline(ecoRoute, {
+        color: "#233830", // dark green
+        weight: 5,
+        opacity: 0.9,
+      }).addTo(map);
+    }
+
+    if (googleRoute && googleRoute.length > 0) {
+      googlePolylineRef.current = L.polyline(googleRoute, {
+        color: "#ACC08D", // slightly lighter green
+        weight: 4,
+        opacity: 0.7,
+      }).addTo(map);
+    }
+  }, [ecoRoute, googleRoute]);
+
   return (
     <div
       className="relative rounded-2xl overflow-hidden"
@@ -140,10 +181,7 @@ export default function MapDisplay({
       }}
     >
       <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-
-      {/* Render the LoadingOverlay component */}
       <LoadingOverlay isLoading={loading} />
     </div>
   );
-  
 }

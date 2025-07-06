@@ -51,7 +51,14 @@ export default function MapControls({
           >
             <GeoapifyGeocoderAutocomplete
               placeholder="Enter source"
-              placeSelect={(place) => setSource(place)}
+              placeSelect={(place) => {
+                console.log(
+                  "Source Coordinates:",
+                  place?.properties?.lat,
+                  place?.properties?.lon
+                );
+                setSource(place);
+              }}
             />
           </div>
         </div>
@@ -70,7 +77,14 @@ export default function MapControls({
           >
             <GeoapifyGeocoderAutocomplete
               placeholder="Enter destination"
-              placeSelect={(place) => setDestination(place)}
+              placeSelect={(place) => {
+                console.log(
+                  "Destination Coordinates:",
+                  place?.properties?.lat,
+                  place?.properties?.lon
+                );
+                setDestination(place);
+              }}
             />
           </div>
         </div>
