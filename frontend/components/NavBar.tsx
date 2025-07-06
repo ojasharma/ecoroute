@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Home, Clock, Users, Settings, LogOut } from "lucide-react";
 import React from "react";
 
-// Navigation items array
 const navItems = [
   { href: "/dashboard", icon: <Home size={22} />, label: "Dashboard" },
   { href: "/history", icon: <Clock size={22} />, label: "History" },
@@ -61,17 +60,17 @@ export default function Navbar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col flex-grow items-center gap-2 p-2">
+      <nav className="flex flex-col flex-grow items-center gap-2">
         {navItems.map((item) => (
           <Link key={item.href} href={item.href} passHref legacyBehavior>
             <a
-              className={`flex items-center w-full h-12 rounded-2xl transition-all duration-200 ease-in-out
+              className={`flex items-center h-12 rounded-r-2xl transition-all duration-200 ease-in-out
                 ${
                   pathname === item.href
-                    ? "bg-[#ACC08D] text-[#233830] shadow-lg"
+                    ? "bg-[#ACC08D] text-[#233830] shadow-lg mr-2"
                     : "hover:bg-white/10 text-[#ACC08D]"
                 }
-                transition-colors
+                transition-colors w-[calc(100%-0.5rem)]
               `}
               title={item.label}
             >
@@ -90,10 +89,10 @@ export default function Navbar() {
       </nav>
 
       {/* Logout */}
-      <div className="p-2">
+      <div>
         <button
           onClick={handleLogout}
-          className="flex items-center w-full h-12 rounded-2xl hover:bg-white/10 text-[#ACC08D] transition-colors duration-200 ease-in-out"
+          className="flex items-center w-[calc(100%-0.5rem)] h-12 rounded-r-2xl hover:bg-white/10 text-[#ACC08D] transition-colors duration-200 ease-in-out mr-2"
           title="Logout"
         >
           <div className="flex items-center justify-center w-16 flex-shrink-0">

@@ -131,3 +131,133 @@
   body {
     font-family: "Poppins", sans-serif;
   }
+
+  @keyframes spin-slow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes blink {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+  }
+  
+  @keyframes typing {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-spin-slow {
+    animation: spin-slow 4s linear infinite;
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  
+  .animate-blink {
+    animation: blink 1s infinite;
+  }
+  
+  .animate-typing {
+    animation: typing 0.4s ease-out;
+  }
+/*
+ * =========================================
+ * The main container for your loading screen.
+ * =========================================
+ */
+ .loading-screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #233830;
+}
+
+/*
+ * =========================================
+ * The pseudo-element for the gradient.
+ * =========================================
+ */
+.loading-screen::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150%; 
+  height: 150%;
+  
+  /* The Gradient Colors */
+  background: conic-gradient(
+    #233830, /* Deep Green */
+    #ACC08D, /* Light Green */
+    #8A2BE2, /* Blue Violet (Purple) */
+    #DC143C, /* Crimson (Red) */
+    #FF6347, /* Tomato (Red-Orange) */
+    #ACC08D, /* Light Green */
+    #233830  /* Seamless loop */
+  );
+  
+  /*
+   * The Continuous Animation:
+   * We apply our new 'liquid-move' animation here.
+   * It runs for 15 seconds, at a constant speed, and loops infinitely.
+   */
+  animation: liquid-move 15s linear infinite;
+  
+  /* The "Glass" Effect */
+  filter: blur(10vw); 
+}
+
+/*
+ * =========================================
+ * Keyframes for the enhanced liquid animation.
+ * This rule now animates both rotation and background size
+ * to create a continuous morphing and spinning effect.
+ * =========================================
+ */
+@keyframes liquid-move {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+    background-size: 150% 150%;
+  }
+  50% {
+    /* Halfway through, it zooms in slightly */
+    transform: translate(-50%, -50%) rotate(180deg);
+    background-size: 200% 200%;
+  }
+  100% {
+    /* Returns to the original state for a smooth, continuous loop */
+    transform: translate(-50%, -50%) rotate(360deg);
+    background-size: 150% 150%;
+  }
+}
+
+/* Optional content for context */
+.loading-content {
+    position: relative;
+    z-index: 1;
+    color: white;
+    text-align: center;
+    padding-top: 45vh;
+    font-family: sans-serif;
+    font-size: 2rem;
+}  

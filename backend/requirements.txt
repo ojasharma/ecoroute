@@ -7,3 +7,4 @@ googlemaps
 requests
 pandas
 polyline
+scikit-learn

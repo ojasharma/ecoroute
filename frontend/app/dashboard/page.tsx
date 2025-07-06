@@ -9,15 +9,15 @@ import {
 import "@geoapify/geocoder-autocomplete/styles/minimal.css";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
+import AnimatedButton from "@/components/UI elements/FindButton"; // Adjust path if needed
 
-// Custom icon creation function
 const createCustomIcon = (
   iconUrl: string,
   size: [number, number] = [32, 32],
   anchor: [number, number] = [16, 32]
 ) => {
   return L.icon({
-    iconUrl: iconUrl,
+    iconUrl,
     iconSize: size,
     iconAnchor: anchor,
     popupAnchor: [0, -32] as [number, number],
@@ -40,6 +40,7 @@ export default function Page() {
   const [source, setSource] = useState<any>(null);
   const [destination, setDestination] = useState<any>(null);
   const [vehicle, setVehicle] = useState("motorcycle");
+  const [loading, setLoading] = useState(false);
 
   const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
 
@@ -80,12 +81,6 @@ export default function Page() {
     }
 
     if (source?.properties?.lat && source?.properties?.lon) {
-      console.log(
-        "Source coordinates:",
-        source.properties.lat,
-        source.properties.lon
-      );
-
       const marker = L.marker([source.properties.lat, source.properties.lon], {
         title: source.properties.formatted || "Source",
         icon: sourceIcon,
@@ -114,12 +109,6 @@ export default function Page() {
     }
 
     if (destination?.properties?.lat && destination?.properties?.lon) {
-      console.log(
-        "Destination coordinates:",
-        destination.properties.lat,
-        destination.properties.lon
-      );
-
       const marker = L.marker(
         [destination.properties.lat, destination.properties.lon],
         {
@@ -144,34 +133,37 @@ export default function Page() {
     }
   }, [destination, source]);
 
-const handleRouteFind = () => {
-  if (!source || !destination) {
-    alert("Please select both source and destination.");
-    return;
-  }
+  const handleRouteFind = () => {
+    if (!source || !destination) {
+      alert("Please select both source and destination.");
+      return;
+    }
 
-  const logPayload = {
-    source,
-    destination,
-    vehicle,
+    setLoading(true);
+
+    const origin = [source.properties.lat, source.properties.lon];
+    const destinationCoords = [
+      destination.properties.lat,
+      destination.properties.lon,
+    ];
+
+    axios
+      .post("http://127.0.0.1:8000/route", {
+        origin,
+        destination: destinationCoords,
+        vehicle,
+      })
+      .then((response) => {
+        console.log("Route response:", response.data);
+      })
+      .catch((error) => {
+        console.error("Error fetching route:", error);
+        alert("Failed to fetch route.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
-
-  // Send to server for logging
-  axios
-    .post("http://127.0.0.1:8000/route", {
-      origin: source,
-      destination,
-      vehicle,
-    })
-    .then((response) => {
-      console.log("Route response:", response.data);
-    })
-    .catch((error) => {
-      console.error("Error fetching route:", error);
-      alert("Failed to fetch route.");
-    });
-};
-
 
   if (!apiKey) {
     return (
@@ -196,7 +188,7 @@ const handleRouteFind = () => {
           <div className="flex justify-between items-start gap-4">
             {/* Left Panel */}
             <div
-              className="rounded-2xl p-6 flex flex-col gap-4"
+              className="rounded-2xl p-6 flex flex-col"
               style={{
                 backgroundColor: "#233830",
                 width: "23vw",
@@ -204,93 +196,84 @@ const handleRouteFind = () => {
                 color: "#F0EDD1",
               }}
             >
-              <div>
-                <label
-                  className="block mb-1 text-sm font-medium"
-                  htmlFor="source"
-                >
-                  Source
-                </label>
-                <div
-                  className="w-full rounded-2xl px-4 py-2"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    backdropFilter: "blur(10px)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    position: "relative",
-                    zIndex: 99,
-                  }}
-                >
-                  <GeoapifyGeocoderAutocomplete
-                    placeholder="Enter source"
-                    placeSelect={(place) => setSource(place)}
-                  />
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="block mb-1 text-sm font-medium">
+                    Source
+                  </label>
+                  <div
+                    className="w-full rounded-2xl px-4 py-2"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.1)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      position: "relative",
+                      zIndex: 99,
+                    }}
+                  >
+                    <GeoapifyGeocoderAutocomplete
+                      placeholder="Enter source"
+                      placeSelect={(place) => setSource(place)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block mb-1 text-sm font-medium">
+                    Destination
+                  </label>
+                  <div
+                    className="w-full rounded-2xl px-4 py-2"
+                    style={{
+                      backgroundColor: "rgba(255, 255, 255, 0.1)",
+                      backdropFilter: "blur(10px)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      position: "relative",
+                      zIndex: 9,
+                    }}
+                  >
+                    <GeoapifyGeocoderAutocomplete
+                      placeholder="Enter destination"
+                      placeSelect={(place) => setDestination(place)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block mb-1 text-sm font-medium">
+                    Vehicle Type
+                  </label>
+                  <select
+                    value={vehicle}
+                    onChange={(e) => setVehicle(e.target.value)}
+                    className="w-full rounded-2xl px-4 py-2"
+                    style={{
+                      backgroundColor: "#ACC08D",
+                      color: "#233830",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                    }}
+                  >
+                    <option value="motorcycle">Motorcycle</option>
+                    <option value="pass. car">Passenger Car</option>
+                    <option value="LCV">Light Commercial Vehicle</option>
+                    <option value="coach">Coach</option>
+                    <option value="HGV">Heavy Goods Vehicle</option>
+                    <option value="urban bus">Urban Bus</option>
+                  </select>
                 </div>
               </div>
 
-              <div>
-                <label
-                  className="block mb-1 text-sm font-medium"
-                  htmlFor="destination"
-                >
-                  Destination
-                </label>
-                <div
-                  className="w-full rounded-2xl px-4 py-2"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    backdropFilter: "blur(10px)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    position: "relative",
-                    zIndex: 9,
-                  }}
-                >
-                  <GeoapifyGeocoderAutocomplete
-                    placeholder="Enter destination"
-                    placeSelect={(place) => setDestination(place)}
-                  />
-                </div>
+              <div className="mt-auto">
+                <AnimatedButton
+                  disabled={!source || !destination}
+                  onClick={handleRouteFind}
+                />
               </div>
-
-              <div>
-                <label
-                  className="block mb-1 text-sm font-medium"
-                  htmlFor="vehicle"
-                >
-                  Vehicle Type
-                </label>
-                <select
-                  id="vehicle"
-                  value={vehicle}
-                  onChange={(e) => setVehicle(e.target.value)}
-                  className="w-full rounded-2xl px-4 py-2"
-                  style={{
-                    backgroundColor: "#ACC08D",
-                    color: "#233830",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                  }}
-                >
-                  <option value="motorcycle">Motorcycle</option>
-                  <option value="pass. car">Passenger Car</option>
-                  <option value="LCV">Light Commercial Vehicle</option>
-                  <option value="coach">Coach</option>
-                  <option value="HGV">Heavy Goods Vehicle</option>
-                  <option value="urban bus">Urban Bus</option>
-                </select>
-              </div>
-
-              <button
-                onClick={handleRouteFind}
-                className="mt-auto rounded-2xl px-6 py-3 text-lg font-semibold"
-                style={{ backgroundColor: "#ACC08D", color: "#233830" }}
-              >
-                Find Route
-              </button>
             </div>
 
-            {/* Map Panel */}
+            {/* Map Panel with Overlay */}
             <div
-              className="rounded-2xl overflow-hidden"
+              className="relative rounded-2xl overflow-hidden"
               style={{
                 backgroundColor: "#233830",
                 width: "60vw",
@@ -298,6 +281,21 @@ const handleRouteFind = () => {
               }}
             >
               <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
+
+              {loading && (
+                <div
+                  className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-[999]"
+                  style={{
+                    backgroundColor: "rgba(35, 56, 48, 0.8)",
+                    backdropFilter: "blur(2px)",
+                    color: "#F0EDD1",
+                    fontSize: "2rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Please Wait...
+                </div>
+              )}
             </div>
           </div>
         </div>
