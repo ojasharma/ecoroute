@@ -200,6 +200,10 @@ async def get_vehicles():
         ]
     }
 
+def safe_get(d, key, default=0.0):
+    val = d.get(key)
+    return val if val is not None else default
+
 @app.post("/route", response_model=RouteResponse)
 async def calculate_route(request: RouteRequest):
     """Calculate eco-friendly and fastest routes"""
@@ -232,6 +236,7 @@ async def calculate_route(request: RouteRequest):
                     elevations.extend(batch_result)
             
             for node, elev in zip(uncached_nodes, elevations):
+                elev = elev if elev is not None else 0.0
                 G.nodes[node]["elevation"] = elev
                 elev_cache[node] = elev
             
@@ -239,8 +244,9 @@ async def calculate_route(request: RouteRequest):
 
         # Ensure all nodes have elevation
         for node in G.nodes:
-            if "elevation" not in G.nodes[node]:
+            if "elevation" not in G.nodes[node] or G.nodes[node]["elevation"] is None:
                 G.nodes[node]["elevation"] = 0.0
+
 
         # Add grades
         G = ox.add_edge_grades(G)
@@ -281,7 +287,8 @@ async def calculate_route(request: RouteRequest):
             speed = tomtom_cache.get(key)
             if speed is not None:
                 G[u][v][k]["speed_kph"] = speed
-                G[u][v][k]["travel_time"] = G[u][v][k].get("length", 1) / (speed * 1000 / 3600)
+                length = safe_get(G[u][v][k], "length", 1.0)
+                G[u][v][k]["travel_time"] = length / (speed * 1000 / 3600)
 
         # Calculate turn penalties
         for u, v, k in G.edges(keys=True):
@@ -310,8 +317,9 @@ async def calculate_route(request: RouteRequest):
                 penalty = 5
 
             for k in G[u][v]:
-                G[u][v][k]["turn_penalty"] += penalty
-                G[u][v][k]["travel_time"] += penalty
+                G[u][v][k]["turn_penalty"] = G[u][v][k].get("turn_penalty", 0) + penalty
+                G[u][v][k]["travel_time"] = safe_get(G[u][v][k], "travel_time") + penalty
+
 
         # Calculate eco costs
         nx.set_edge_attributes(G, {

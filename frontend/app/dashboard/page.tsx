@@ -8,6 +8,7 @@ import {
 } from "@geoapify/react-geocoder-autocomplete";
 import "@geoapify/geocoder-autocomplete/styles/minimal.css";
 import "leaflet/dist/leaflet.css";
+import axios from "axios";
 
 // Custom icon creation function
 const createCustomIcon = (
@@ -143,12 +144,34 @@ export default function Page() {
     }
   }, [destination, source]);
 
-  const handleRouteFind = () => {
-    console.log("Source:", source);
-    console.log("Destination:", destination);
-    console.log("Vehicle:", vehicle);
-    // Add route API logic here
+const handleRouteFind = () => {
+  if (!source || !destination) {
+    alert("Please select both source and destination.");
+    return;
+  }
+
+  const logPayload = {
+    source,
+    destination,
+    vehicle,
   };
+
+  // Send to server for logging
+  axios
+    .post("http://127.0.0.1:8000/route", {
+      origin: source,
+      destination,
+      vehicle,
+    })
+    .then((response) => {
+      console.log("Route response:", response.data);
+    })
+    .catch((error) => {
+      console.error("Error fetching route:", error);
+      alert("Failed to fetch route.");
+    });
+};
+
 
   if (!apiKey) {
     return (
