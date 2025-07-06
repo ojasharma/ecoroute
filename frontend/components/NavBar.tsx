@@ -42,7 +42,7 @@ export default function Navbar() {
   };
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-20 bg-[#233830] text-[#ACC08D] flex flex-col z-50 hover:w-56 transition-all duration-300 ease-in-out group">
+    <aside className="fixed top-0 left-0 h-screen w-20 bg-[#233830] text-[#ACC08D] flex flex-col z-500 hover:w-56 transition-all duration-300 ease-in-out group">
       {/* Logo and Brand */}
       <div className="flex items-center h-20 w-full flex-shrink-0 pl-6">
         <Link href="/dashboard" className="flex items-center outline-none">

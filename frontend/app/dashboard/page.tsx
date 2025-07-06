@@ -17,9 +17,9 @@ const createCustomIcon = (
 ) => {
   return L.icon({
     iconUrl: iconUrl,
-    iconSize: size, // size of the icon
-    iconAnchor: anchor, // point of the icon which will correspond to marker's location
-    popupAnchor: [0, -32] as [number, number], // point from which the popup should open relative to the iconAnchor
+    iconSize: size,
+    iconAnchor: anchor,
+    popupAnchor: [0, -32] as [number, number],
     shadowUrl:
       "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
     shadowSize: [41, 41] as [number, number],
@@ -27,7 +27,6 @@ const createCustomIcon = (
   });
 };
 
-// Create custom icons
 const sourceIcon = createCustomIcon("/marker1.png");
 const destinationIcon = createCustomIcon("/marker2.png");
 
@@ -72,7 +71,6 @@ export default function Page() {
 
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-
     const map = mapInstanceRef.current;
 
     if (sourceMarkerRef.current) {
@@ -81,9 +79,15 @@ export default function Page() {
     }
 
     if (source?.properties?.lat && source?.properties?.lon) {
+      console.log(
+        "Source coordinates:",
+        source.properties.lat,
+        source.properties.lon
+      );
+
       const marker = L.marker([source.properties.lat, source.properties.lon], {
         title: source.properties.formatted || "Source",
-        icon: sourceIcon, // Custom source icon
+        icon: sourceIcon,
       }).addTo(map);
       sourceMarkerRef.current = marker;
 
@@ -101,7 +105,6 @@ export default function Page() {
 
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-
     const map = mapInstanceRef.current;
 
     if (destinationMarkerRef.current) {
@@ -110,11 +113,17 @@ export default function Page() {
     }
 
     if (destination?.properties?.lat && destination?.properties?.lon) {
+      console.log(
+        "Destination coordinates:",
+        destination.properties.lat,
+        destination.properties.lon
+      );
+
       const marker = L.marker(
         [destination.properties.lat, destination.properties.lon],
         {
           title: destination.properties.formatted || "Destination",
-          icon: destinationIcon, // Custom destination icon
+          icon: destinationIcon,
         }
       ).addTo(map);
       destinationMarkerRef.current = marker;
@@ -186,7 +195,7 @@ export default function Page() {
                     backdropFilter: "blur(10px)",
                     border: "1px solid rgba(255, 255, 255, 0.2)",
                     position: "relative",
-                    zIndex: 9999,
+                    zIndex: 99,
                   }}
                 >
                   <GeoapifyGeocoderAutocomplete
@@ -210,7 +219,7 @@ export default function Page() {
                     backdropFilter: "blur(10px)",
                     border: "1px solid rgba(255, 255, 255, 0.2)",
                     position: "relative",
-                    zIndex: 999,
+                    zIndex: 9,
                   }}
                 >
                   <GeoapifyGeocoderAutocomplete
