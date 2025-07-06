@@ -150,19 +150,16 @@ const handleRouteFind = () => {
     return;
   }
 
-  const logPayload = {
-    source,
-    destination,
+  const payload = {
+    origin: source.geometry.coordinates.reverse(),       // [lat, lon]
+    destination: destination.geometry.coordinates.reverse(), // [lat, lon]
     vehicle,
   };
 
-  // Send to server for logging
+  console.log("Payload for route request:", payload);
+
   axios
-    .post("http://127.0.0.1:8000/route", {
-      origin: source,
-      destination,
-      vehicle,
-    })
+    .post("http://127.0.0.1:8000/route", payload)
     .then((response) => {
       console.log("Route response:", response.data);
     })
@@ -171,6 +168,7 @@ const handleRouteFind = () => {
       alert("Failed to fetch route.");
     });
 };
+
 
 
   if (!apiKey) {
