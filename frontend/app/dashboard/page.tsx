@@ -1,137 +1,18 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
-import L, { Marker } from "leaflet";
-import {
-  GeoapifyContext,
-  GeoapifyGeocoderAutocomplete,
-} from "@geoapify/react-geocoder-autocomplete";
-import "@geoapify/geocoder-autocomplete/styles/minimal.css";
-import "leaflet/dist/leaflet.css";
+import React, { useState } from "react";
+import { GeoapifyContext } from "@geoapify/react-geocoder-autocomplete";
 import axios from "axios";
-import AnimatedButton from "@/components/UI elements/FindButton"; // Adjust path if needed
-
-const createCustomIcon = (
-  iconUrl: string,
-  size: [number, number] = [32, 32],
-  anchor: [number, number] = [16, 32]
-) => {
-  return L.icon({
-    iconUrl,
-    iconSize: size,
-    iconAnchor: anchor,
-    popupAnchor: [0, -32] as [number, number],
-    shadowUrl:
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-    shadowSize: [41, 41] as [number, number],
-    shadowAnchor: [12, 41] as [number, number],
-  });
-};
-
-const sourceIcon = createCustomIcon("/marker1.png");
-const destinationIcon = createCustomIcon("/marker2.png");
+import MapControls from "@/components/MapControls"; // Adjust path if needed
+import MapDisplay from "@/components/MapDisplay"; // Adjust path if needed
 
 export default function Page() {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-  const sourceMarkerRef = useRef<Marker | null>(null);
-  const destinationMarkerRef = useRef<Marker | null>(null);
-
   const [source, setSource] = useState<any>(null);
   const [destination, setDestination] = useState<any>(null);
   const [vehicle, setVehicle] = useState("motorcycle");
   const [loading, setLoading] = useState(false);
 
   const apiKey = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
-
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    const map = L.map(mapRef.current).setView([28.6139, 77.209], 5);
-    mapInstanceRef.current = map;
-
-    L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}.png",
-      {
-        attribution:
-          '© <a href="https://carto.com/">CARTO</a> | © OpenStreetMap contributors',
-      }
-    ).addTo(map);
-
-    return () => {
-      if (sourceMarkerRef.current) {
-        sourceMarkerRef.current.remove();
-        sourceMarkerRef.current = null;
-      }
-      if (destinationMarkerRef.current) {
-        destinationMarkerRef.current.remove();
-        destinationMarkerRef.current = null;
-      }
-      map.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-    const map = mapInstanceRef.current;
-
-    if (sourceMarkerRef.current) {
-      sourceMarkerRef.current.remove();
-      sourceMarkerRef.current = null;
-    }
-
-    if (source?.properties?.lat && source?.properties?.lon) {
-      const marker = L.marker([source.properties.lat, source.properties.lon], {
-        title: source.properties.formatted || "Source",
-        icon: sourceIcon,
-      }).addTo(map);
-      sourceMarkerRef.current = marker;
-
-      if (destination?.properties?.lat && destination?.properties?.lon) {
-        const bounds = L.latLngBounds(
-          [source.properties.lat, source.properties.lon],
-          [destination.properties.lat, destination.properties.lon]
-        );
-        map.fitBounds(bounds, { padding: [50, 50] });
-      } else {
-        map.setView([source.properties.lat, source.properties.lon], 10);
-      }
-    }
-  }, [source, destination]);
-
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-    const map = mapInstanceRef.current;
-
-    if (destinationMarkerRef.current) {
-      destinationMarkerRef.current.remove();
-      destinationMarkerRef.current = null;
-    }
-
-    if (destination?.properties?.lat && destination?.properties?.lon) {
-      const marker = L.marker(
-        [destination.properties.lat, destination.properties.lon],
-        {
-          title: destination.properties.formatted || "Destination",
-          icon: destinationIcon,
-        }
-      ).addTo(map);
-      destinationMarkerRef.current = marker;
-
-      if (source?.properties?.lat && source?.properties?.lon) {
-        const bounds = L.latLngBounds(
-          [source.properties.lat, source.properties.lon],
-          [destination.properties.lat, destination.properties.lon]
-        );
-        map.fitBounds(bounds, { padding: [50, 50] });
-      } else {
-        map.setView(
-          [destination.properties.lat, destination.properties.lon],
-          10
-        );
-      }
-    }
-  }, [destination, source]);
 
   const handleRouteFind = () => {
     if (!source || !destination) {
@@ -155,6 +36,8 @@ export default function Page() {
       })
       .then((response) => {
         console.log("Route response:", response.data);
+        // You'll likely want to do something with the route data here,
+        // such as drawing it on the map.
       })
       .catch((error) => {
         console.error("Error fetching route:", error);
@@ -186,117 +69,22 @@ export default function Page() {
           <h1 className="text-5xl font-bold mb-4">Dashboard</h1>
 
           <div className="flex justify-between items-start gap-4">
-            {/* Left Panel */}
-            <div
-              className="rounded-2xl p-6 flex flex-col"
-              style={{
-                backgroundColor: "#233830",
-                width: "23vw",
-                height: "75vh",
-                color: "#F0EDD1",
-              }}
-            >
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="block mb-1 text-sm font-medium">
-                    Source
-                  </label>
-                  <div
-                    className="w-full rounded-2xl px-4 py-2"
-                    style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.1)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      position: "relative",
-                      zIndex: 99,
-                    }}
-                  >
-                    <GeoapifyGeocoderAutocomplete
-                      placeholder="Enter source"
-                      placeSelect={(place) => setSource(place)}
-                    />
-                  </div>
-                </div>
+            <MapControls
+              source={source}
+              setSource={setSource}
+              destination={destination}
+              setDestination={setDestination}
+              vehicle={vehicle}
+              setVehicle={setVehicle}
+              handleRouteFind={handleRouteFind}
+              loading={loading}
+            />
 
-                <div>
-                  <label className="block mb-1 text-sm font-medium">
-                    Destination
-                  </label>
-                  <div
-                    className="w-full rounded-2xl px-4 py-2"
-                    style={{
-                      backgroundColor: "rgba(255, 255, 255, 0.1)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      position: "relative",
-                      zIndex: 9,
-                    }}
-                  >
-                    <GeoapifyGeocoderAutocomplete
-                      placeholder="Enter destination"
-                      placeSelect={(place) => setDestination(place)}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block mb-1 text-sm font-medium">
-                    Vehicle Type
-                  </label>
-                  <select
-                    value={vehicle}
-                    onChange={(e) => setVehicle(e.target.value)}
-                    className="w-full rounded-2xl px-4 py-2"
-                    style={{
-                      backgroundColor: "#ACC08D",
-                      color: "#233830",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                    }}
-                  >
-                    <option value="motorcycle">Motorcycle</option>
-                    <option value="pass. car">Passenger Car</option>
-                    <option value="LCV">Light Commercial Vehicle</option>
-                    <option value="coach">Coach</option>
-                    <option value="HGV">Heavy Goods Vehicle</option>
-                    <option value="urban bus">Urban Bus</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-auto">
-                <AnimatedButton
-                  disabled={!source || !destination}
-                  onClick={handleRouteFind}
-                />
-              </div>
-            </div>
-
-            {/* Map Panel with Overlay */}
-            <div
-              className="relative rounded-2xl overflow-hidden"
-              style={{
-                backgroundColor: "#233830",
-                width: "60vw",
-                height: "75vh",
-              }}
-            >
-              <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-
-              {loading && (
-                <div
-                  className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-[999]"
-                  style={{
-                    backgroundColor: "rgba(35, 56, 48, 0.8)",
-                    backdropFilter: "blur(2px)",
-                    color: "#F0EDD1",
-                    fontSize: "2rem",
-                    fontWeight: "bold",
-                  }}
-                >
-                  Please Wait...
-                </div>
-              )}
-            </div>
+            <MapDisplay
+              source={source}
+              destination={destination}
+              loading={loading}
+            />
           </div>
         </div>
       </div>
