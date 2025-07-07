@@ -5,8 +5,11 @@ import os
 import json
 import math
 import random
+import pickle
+import hashlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from pathlib import Path
 import pandas as pd
 import networkx as nx
 import osmnx as ox
@@ -17,6 +20,7 @@ import polyline
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from geopy.distance import geodesic
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -332,6 +336,394 @@ async def get_vehicles():
         ]
     }
 
+def interpolate_points_along_route(origin_coords, destination_coords, num_points):
+    """
+    Create intermediate points along the great circle route between origin and destination.
+    
+    Args:
+        origin_coords: (lat, lon) tuple for origin
+        destination_coords: (lat, lon) tuple for destination
+        num_points: Number of intermediate points to create
+    
+    Returns:
+        list: List of (lat, lon) tuples including origin and destination
+    """
+    points = []
+    
+    # Add origin
+    points.append(origin_coords)
+    
+    # Calculate intermediate points
+    for i in range(1, num_points - 1):
+        fraction = i / (num_points - 1)
+        
+        # Linear interpolation of coordinates
+        lat = origin_coords[0] + fraction * (destination_coords[0] - origin_coords[0])
+        lon = origin_coords[1] + fraction * (destination_coords[1] - origin_coords[1])
+        
+        points.append((lat, lon))
+    
+    # Add destination
+    points.append(destination_coords)
+    
+    return points
+
+# Global cache directory
+CACHE_DIR = Path("graph_cache")
+CACHE_DIR.mkdir(exist_ok=True)
+
+def get_chunk_cache_key(center_coords, chunk_size_km):
+    """
+    Generate a unique cache key for a graph chunk.
+    
+    Args:
+        center_coords: (lat, lon) tuple for center
+        chunk_size_km: Size of chunk in kilometers
+    
+    Returns:
+        str: Cache key
+    """
+    # Round coordinates to 4 decimal places for consistent caching
+    lat_rounded = round(center_coords[0], 4)
+    lon_rounded = round(center_coords[1], 4)
+    
+    # Create cache key from rounded coordinates and chunk size
+    cache_string = f"chunk_{lat_rounded}_{lon_rounded}_{chunk_size_km}"
+    
+    # Use hash to create shorter filename
+    cache_hash = hashlib.md5(cache_string.encode()).hexdigest()[:12]
+    
+    return f"chunk_{cache_hash}.pkl"
+
+def save_chunk_to_cache(graph_chunk, cache_key):
+    """
+    Save a graph chunk to cache.
+    
+    Args:
+        graph_chunk: networkx.MultiDiGraph object
+        cache_key: Cache key string
+    """
+    try:
+        cache_path = CACHE_DIR / cache_key
+        with open(cache_path, 'wb') as f:
+            pickle.dump(graph_chunk, f, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.debug(f"Saved chunk to cache: {cache_key}")
+    except Exception as e:
+        logger.warning(f"Failed to save chunk to cache: {e}")
+
+def load_chunk_from_cache(cache_key):
+    """
+    Load a graph chunk from cache.
+    
+    Args:
+        cache_key: Cache key string
+    
+    Returns:
+        networkx.MultiDiGraph or None: Cached graph chunk
+    """
+    try:
+        cache_path = CACHE_DIR / cache_key
+        if cache_path.exists():
+            with open(cache_path, 'rb') as f:
+                chunk = pickle.load(f)
+            logger.debug(f"Loaded chunk from cache: {cache_key}")
+            return chunk
+    except Exception as e:
+        logger.warning(f"Failed to load chunk from cache: {e}")
+    
+    return None
+
+def clear_old_cache(max_age_days=7):
+    """
+    Clear cache files older than specified days.
+    
+    Args:
+        max_age_days: Maximum age in days
+    """
+    try:
+        current_time = time.time()
+        max_age_seconds = max_age_days * 24 * 60 * 60
+        
+        for cache_file in CACHE_DIR.glob("chunk_*.pkl"):
+            if current_time - cache_file.stat().st_mtime > max_age_seconds:
+                cache_file.unlink()
+                logger.debug(f"Deleted old cache file: {cache_file.name}")
+    except Exception as e:
+        logger.warning(f"Failed to clear old cache: {e}")
+
+def calculate_chunk_bounds(center_coords, chunk_size_km=25):
+    """
+    Calculate bounding box for a chunk around center coordinates.
+    
+    Args:
+        center_coords: (lat, lon) tuple for center
+        chunk_size_km: Size of chunk in kilometers
+    
+    Returns:
+        tuple: (west, south, east, north) bounds
+    """
+    center_lat, center_lon = center_coords
+    
+    # Calculate approximate degree offset for the chunk size
+    # 1 degree latitude ≈ 111 km
+    # 1 degree longitude ≈ 111 km * cos(latitude)
+    lat_offset = chunk_size_km / 111.0
+    lon_offset = chunk_size_km / (111.0 * math.cos(math.radians(center_lat)))
+    
+    north = center_lat + lat_offset
+    south = center_lat - lat_offset
+    east = center_lon + lon_offset
+    west = center_lon - lon_offset
+    
+    return west, south, east, north
+
+def download_graph_chunk(center_coords, chunk_size_km=25, retry_count=3):
+    """
+    Download a single graph chunk with retry logic.
+    
+    Args:
+        center_coords: (lat, lon) tuple for center
+        chunk_size_km: Size of chunk in kilometers
+        retry_count: Number of retry attempts
+    
+    Returns:
+        networkx.MultiDiGraph or None: Road network graph chunk
+    """
+    west, south, east, north = calculate_chunk_bounds(center_coords, chunk_size_km)
+    
+    for attempt in range(retry_count):
+        try:
+            logger.info(f"Downloading chunk {attempt + 1}/{retry_count} around {center_coords}")
+            
+            bbox = (west, south, east, north)
+            G = ox.graph_from_bbox(
+                bbox=bbox,
+                network_type="drive",
+                simplify=True
+            )
+            
+            logger.info(f"Downloaded chunk with {len(G.nodes)} nodes and {len(G.edges)} edges")
+            return G
+            
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1} failed for chunk {center_coords}: {e}")
+            if attempt < retry_count - 1:
+                # Wait before retry, with exponential backoff
+                wait_time = (2 ** attempt) * 5  # 5, 10, 20 seconds
+                logger.info(f"Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+            else:
+                logger.error(f"Failed to download chunk after {retry_count} attempts")
+                return None
+
+def merge_graph_chunks(graph_chunks):
+    """
+    Merge multiple graph chunks into a single graph with memory optimization.
+    Uses nx.compose() to handle overlapping nodes properly.
+    
+    Args:
+        graph_chunks: List of networkx.MultiDiGraph objects
+    
+    Returns:
+        networkx.MultiDiGraph: Merged graph
+    """
+    if not graph_chunks:
+        raise ValueError("No graph chunks to merge")
+    
+    logger.info(f"Merging {len(graph_chunks)} graph chunks...")
+    
+    # Start with the first chunk
+    merged_graph = graph_chunks[0].copy()
+    
+    # Clear the first chunk from memory
+    del graph_chunks[0]
+    
+    # Merge remaining chunks one by one and clear them immediately
+    for i, chunk in enumerate(graph_chunks):
+        logger.info(f"Merging chunk {i+2}/{len(graph_chunks)+1}")
+        
+        # Use compose instead of union to handle overlapping nodes
+        merged_graph = nx.compose(merged_graph, chunk)
+        
+        # Clear the chunk from memory immediately
+        del chunk
+        
+        # Force garbage collection every few chunks
+        if i % 3 == 0:
+            import gc
+            gc.collect()
+    
+    # Final cleanup
+    del graph_chunks
+    import gc
+    gc.collect()
+    
+    logger.info(f"Merged graph has {len(merged_graph.nodes)} nodes and {len(merged_graph.edges)} edges")
+    return merged_graph
+
+def build_optimized_road_network(origin_coords, destination_coords, chunk_size_km=25, use_cache=True):
+    """
+    Build road network graph using chunked downloading for long distances with caching.
+    
+    Args:
+        origin_coords: (lat, lon) tuple for origin
+        destination_coords: (lat, lon) tuple for destination
+        chunk_size_km: Size of each chunk in kilometers
+        use_cache: Whether to use caching
+    
+    Returns:
+        networkx.MultiDiGraph: Road network graph
+    """
+    logger.info("Building road network graph using chunked approach...")
+    graph_build_start = time.time()
+    
+    try:
+        
+        # Calculate total distance
+        total_distance_km = geodesic(origin_coords, destination_coords).kilometers
+        logger.info(f"Total route distance: {total_distance_km:.2f} km")
+        
+        # Determine strategy based on distance
+        if total_distance_km <= 20:
+            # For short distances, use simple rectangular approach
+            logger.info("Using simple rectangular approach for short distance")
+            return build_simple_rectangular_network(origin_coords, destination_coords)
+        
+        # For long distances, use chunked approach
+        logger.info(f"Using chunked approach with {chunk_size_km}km chunks")
+        
+        # Calculate number of chunks needed - more chunks for better coverage
+        num_chunks = max(5, int(total_distance_km / (chunk_size_km * 0.7)) + 3)  # More overlap
+        
+        # Create interpolated points along the route
+        route_points = interpolate_points_along_route(origin_coords, destination_coords, num_chunks)
+        
+        logger.info(f"Created {len(route_points)} points along route for chunked download")
+        
+        # Download chunks with memory management
+        graph_chunks = []
+        successful_downloads = 0
+        cache_hits = 0
+        max_chunks_in_memory = 5  # Limit chunks in memory
+        
+        for i, point in enumerate(route_points):
+            logger.info(f"Processing chunk {i+1}/{len(route_points)}")
+            
+            # Check if this will be a cache hit
+            cache_key = get_chunk_cache_key(point, chunk_size_km)
+            if use_cache and load_chunk_from_cache(cache_key) is not None:
+                cache_hits += 1
+            
+            chunk = download_graph_chunk(point, chunk_size_km)
+            if chunk is not None:
+                graph_chunks.append(chunk)
+                successful_downloads += 1
+                
+                # If we have too many chunks in memory, start merging
+                if len(graph_chunks) >= max_chunks_in_memory:
+                    logger.info(f"Merging {len(graph_chunks)} chunks to save memory")
+                    merged_partial = merge_graph_chunks(graph_chunks)
+                    graph_chunks = [merged_partial]  # Keep only the merged result
+            else:
+                logger.warning(f"Failed to download chunk {i+1}, continuing with available chunks")
+        
+        if successful_downloads == 0:
+            raise Exception("Failed to download any graph chunks")
+        
+        logger.info(f"Successfully processed {successful_downloads}/{len(route_points)} chunks "
+                   f"({cache_hits} cache hits, {successful_downloads - cache_hits} downloads)")
+        
+        # Final merge of remaining chunks
+        if len(graph_chunks) > 1:
+            merged_graph = merge_graph_chunks(graph_chunks)
+        else:
+            merged_graph = graph_chunks[0]
+        
+        # Clear chunks from memory
+        del graph_chunks
+        import gc
+        gc.collect()
+        
+        # Add speeds and travel times with progress logging
+        logger.info("Adding edge speeds...")
+        merged_graph = ox.add_edge_speeds(merged_graph)
+        
+        logger.info("Adding travel times...")
+        merged_graph = ox.add_edge_travel_times(merged_graph)
+        
+        # Final memory cleanup
+        import gc
+        gc.collect()
+        
+        logger.info(f"Final graph built with {len(merged_graph.nodes)} nodes and {len(merged_graph.edges)} edges "
+                   f"in {time.time() - graph_build_start:.2f}s")
+        
+        return merged_graph
+        
+    except Exception as e:
+        logger.error(f"Failed to build road network graph: {e}", exc_info=True)
+        raise Exception(f"Failed to build road network graph: {e}")
+
+def build_simple_rectangular_network(origin_coords, destination_coords, buffer_km=5, width_ratio=0.4):
+    """
+    Build road network using simple rectangular approach for shorter distances.
+    
+    Args:
+        origin_coords: (lat, lon) tuple for origin
+        destination_coords: (lat, lon) tuple for destination
+        buffer_km: Buffer distance in kilometers
+        width_ratio: Width as ratio of total distance
+    
+    Returns:
+        networkx.MultiDiGraph: Road network graph
+    """
+    # Calculate distance
+    distance_km = geodesic(origin_coords, destination_coords).kilometers
+    
+    # Calculate center point
+    center_lat = (origin_coords[0] + destination_coords[0]) / 2
+    center_lon = (origin_coords[1] + destination_coords[1]) / 2
+    
+    # Calculate bounds with buffer
+    total_distance = distance_km + (2 * buffer_km)
+    width = max(total_distance * width_ratio, 20)  # Minimum 20km width
+    
+    # Calculate approximate degree offsets
+    lat_offset = total_distance / 111.0 / 2
+    lon_offset = width / (111.0 * math.cos(math.radians(center_lat))) / 2
+    
+    north = center_lat + lat_offset
+    south = center_lat - lat_offset
+    east = center_lon + lon_offset
+    west = center_lon - lon_offset
+    
+    logger.info(f"Downloading simple rectangular region: "
+               f"N={north:.4f}, S={south:.4f}, E={east:.4f}, W={west:.4f}")
+    
+    bbox = (west, south, east, north)
+    G = ox.graph_from_bbox(
+        bbox=bbox,
+        network_type="drive",
+        simplify=True
+    )
+    
+    # Add speeds and travel times
+    G = ox.add_edge_speeds(G)
+    G = ox.add_edge_travel_times(G)
+    
+    return G
+
+# Example usage:
+# G = build_optimized_road_network(origin_coords, destination_coords)
+# For very long distances or aggressive chunking:
+# G = build_optimized_road_network(origin_coords, destination_coords, chunk_size_km=20)
+# Disable caching if needed:
+# G = build_optimized_road_network(origin_coords, destination_coords, use_cache=False)
+
+# Cache management functions for maintenance:
+# stats = get_cache_stats()
+# clear_old_cache(max_age_days=3)  # Clear cache older than 3 days
+
 ## Route Calculation Endpoint
 @app.post("/route", response_model=RouteResponse)
 async def calculate_route(request: RouteRequest):
@@ -356,11 +748,12 @@ async def calculate_route(request: RouteRequest):
         graph_build_start = time.time()
         try:
             # Retrieve graph for a sufficient area around the origin
-            G = ox.graph_from_point(origin_coords, dist=25000, network_type="drive", dist_type='bbox')
-            # Ensure speeds are added; these are OSMnx default speeds
-            G = ox.add_edge_speeds(G)
-            # Calculate travel times based on speeds and lengths
-            G = ox.add_edge_travel_times(G)
+            # G = ox.graph_from_point(origin_coords, dist=20000, network_type="drive", dist_type='bbox')
+            # # Ensure speeds are added; these are OSMnx default speeds
+            # G = ox.add_edge_speeds(G)
+            # # Calculate travel times based on speeds and lengths
+            # G = ox.add_edge_travel_times(G)
+            G = build_optimized_road_network(origin_coords, destination_coords, chunk_size_km=25)
             logger.info(f"Graph built with {len(G.nodes)} nodes and {len(G.edges)} edges in {time.time() - graph_build_start:.2f}s.")
         except Exception as e:
             logger.error(f"Failed to build road network graph: {e}", exc_info=True)
