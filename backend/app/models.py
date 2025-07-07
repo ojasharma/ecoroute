@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class RouteRequest(BaseModel):
     origin: Tuple[float, float]  # (lat, lon)
@@ -12,3 +12,4 @@ class RouteResponse(BaseModel):
     eco_stats: dict
     google_stats: dict
     comparison: dict
+    logs: List[str] = Field(default_factory=list) # Add this line to hold logs
