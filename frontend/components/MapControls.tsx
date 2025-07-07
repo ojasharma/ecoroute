@@ -3,7 +3,8 @@
 import React from "react";
 import { GeoapifyGeocoderAutocomplete } from "@geoapify/react-geocoder-autocomplete";
 import "@geoapify/geocoder-autocomplete/styles/minimal.css";
-import AnimatedButton from "@/components/UI elements/FindButton"; // Adjust path if needed
+import AnimatedButton from "@/components/UI elements/FindButton";
+import GoogleMapButton from "./UI elements/GMapButtom";
 
 interface MapControlsProps {
   source: any;
@@ -14,6 +15,7 @@ interface MapControlsProps {
   setVehicle: (vehicle: string) => void;
   handleRouteFind: () => void;
   loading: boolean;
+  routeReady: boolean;
 }
 
 export default function MapControls({
@@ -25,6 +27,7 @@ export default function MapControls({
   setVehicle,
   handleRouteFind,
   loading,
+  routeReady,
 }: MapControlsProps) {
   return (
     <div
@@ -109,13 +112,19 @@ export default function MapControls({
             <option value="urban bus">Urban Bus</option>
           </select>
         </div>
-      </div>
 
-      <div className="mt-auto">
-        <AnimatedButton
-          disabled={!source || !destination || loading}
-          onClick={handleRouteFind}
-        />
+        <div className="mt-2">
+          <AnimatedButton
+            disabled={!source || !destination || loading}
+            onClick={handleRouteFind}
+          />
+        </div>
+
+        {routeReady && (
+          <div className="mt-2">
+            <GoogleMapButton onClick={handleRouteFind} />
+          </div>
+        )}
       </div>
     </div>
   );
