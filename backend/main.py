@@ -58,6 +58,20 @@ async def get_vehicles():
     }
 
 
+def log_performance(func_name: str, start_time: float, **kwargs):
+    """Log performance metrics and additional info"""
+    duration = time.time() - start_time
+    logger.info(f"{func_name} completed in {duration:.2f}s - {kwargs}")
+
+def log_graph_stats(G, stage: str):
+    """Log graph statistics for debugging"""
+    logger.info(f"Graph stats at {stage}: {len(G.nodes)} nodes, {len(G.edges)} edges")
+    
+    # Sample some edge attributes for debugging
+    sample_edges = list(G.edges(data=True))[:3]
+    for u, v, data in sample_edges:
+        logger.debug(f"Sample edge {u}->{v}: {list(data.keys())}")
+
 @app.post("/route", response_model=RouteResponse)
 async def calculate_route(request: RouteRequest):
     """
@@ -138,6 +152,13 @@ async def stream_route(origin: str, destination: str, vehicle: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in route calculation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
 if __name__ == "__main__":
     import uvicorn
     # For local development, you can set API keys directly or via environment variables
