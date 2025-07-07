@@ -164,7 +164,7 @@ export default function MapDisplay({
 
     if (googleRoute && googleRoute.length > 0) {
       googlePolylineRef.current = L.polyline(googleRoute, {
-        color: "#ACC08D", // slightly lighter green
+        color: "#4f4f4f", // slightly lighter green
         weight: 4,
         opacity: 0.7,
       }).addTo(map);

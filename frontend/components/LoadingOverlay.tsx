@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 
 interface LoadingOverlayProps {
@@ -23,7 +23,7 @@ const userFriendlySteps = [
 
 // Total animation duration set to 1 minute 45 seconds (105,000 ms)
 const TOTAL_DURATION = 105000;
-const STEP_INTERVAL = TOTAL_DURATION / (userFriendlySteps.length + 1); // Interval per step
+const STEP_INTERVAL = TOTAL_DURATION / (userFriendlySteps.length + 1);
 
 export default function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -31,48 +31,89 @@ export default function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
   const [visible, setVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
+  const animationFrameId = useRef<number | null>(null);
+  const stepTimerId = useRef<NodeJS.Timeout | null>(null);
 
+  // Effect to control step transitions
+  useEffect(() => {
     if (isLoading) {
+      // Reset and start loading animation
       setVisible(true);
+      setIsExiting(false);
       setCurrentStepIndex(0);
       setProgress(0);
-      setIsExiting(false);
 
-      timer = setInterval(() => {
+      // Interval to advance to the next step
+      stepTimerId.current = setInterval(() => {
         setCurrentStepIndex((prevIndex) => {
           if (prevIndex < userFriendlySteps.length - 1) {
-            setIsExiting(true);
-            setTimeout(() => {
-              setCurrentStepIndex(prevIndex + 1);
-              setProgress(((prevIndex + 2) / userFriendlySteps.length) * 99);
-              setIsExiting(false);
-            }, 500);
-            return prevIndex;
+            return prevIndex + 1;
           }
-          if (timer) clearInterval(timer);
+          // If it reaches the last step, clear the interval
+          if (stepTimerId.current) clearInterval(stepTimerId.current);
           return prevIndex;
         });
       }, STEP_INTERVAL);
     } else if (visible) {
-      if (timer) clearInterval(timer);
-      setIsExiting(true);
+      // Handle loading completion
+      if (stepTimerId.current) clearInterval(stepTimerId.current);
+      if (animationFrameId.current)
+        cancelAnimationFrame(animationFrameId.current);
+
+      // Animate to 100% and fade out
+      setProgress(100);
+      setCurrentStepIndex(userFriendlySteps.length); // Show "Route found!"
+
       setTimeout(() => {
-        setCurrentStepIndex(userFriendlySteps.length);
-        setProgress(100);
-        setIsExiting(false);
-        setTimeout(() => {
-          setVisible(false);
-        }, 1200);
-      }, 500);
+        setIsExiting(true); // Start fade-out animation for the whole overlay
+        setTimeout(() => setVisible(false), 500);
+      }, 800);
     }
 
     return () => {
-      if (timer) clearInterval(timer);
+      if (stepTimerId.current) clearInterval(stepTimerId.current);
+      if (animationFrameId.current)
+        cancelAnimationFrame(animationFrameId.current);
     };
-  }, [isLoading]);
-  
+  }, [isLoading, visible]);
+
+  // Effect for continuous progress bar animation
+  useEffect(() => {
+    if (!isLoading) return;
+
+    const startProgress = progress;
+    // The target is the beginning of the *next* step's progress range
+    const targetProgress =
+      ((currentStepIndex + 1) / (userFriendlySteps.length + 1)) * 100;
+
+    let startTime: number | null = null;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsedTime = timestamp - startTime;
+
+      // Calculate the fraction of the interval that has passed
+      const animationProgress = Math.min(elapsedTime / STEP_INTERVAL, 1);
+
+      // Interpolate the progress value
+      const newProgress =
+        startProgress + (targetProgress - startProgress) * animationProgress;
+
+      setProgress(newProgress);
+
+      if (elapsedTime < STEP_INTERVAL) {
+        animationFrameId.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrameId.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, [currentStepIndex, isLoading]);
 
   if (!visible) return null;
 
@@ -84,6 +125,7 @@ export default function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
   return (
     <>
       <style>{`
+        /* ... existing keyframes and styles ... */
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -130,28 +172,26 @@ export default function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
         .animate-fade-out { animation: fadeOut 0.5s ease-in forwards; }
         
         .text-container {
-            height: 2.5rem; /* Set a fixed height to prevent layout shifts */
+            height: 2.5rem; /* Fixed height for text area */
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .text-anim {
             display: inline-block;
             width: 100%;
+            animation: slideDownIn 0.4s ease-out forwards;
         }
-
-        .anim-slide-up {
-            animation: slideUpOut 0.5s ease-in forwards;
-        }
-
-        .anim-slide-down {
-            animation: slideDownIn 0.5s ease-out forwards;
-        }
-
+        
         .rotate-logo { animation: rotateLogo 8s linear infinite; }
       `}</style>
 
       <div
-        className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-[999] overflow-hidden rounded-2xl animate-fade-in"
+        className={`absolute top-0 left-0 w-full h-full flex items-center justify-center z-[999] overflow-hidden rounded-2xl ${
+          isExiting ? "animate-fade-out" : "animate-fade-in"
+        }`}
         style={{
           pointerEvents: isLoading ? "auto" : "none",
           backgroundColor: "rgba(20, 30, 25, 0.85)",
@@ -213,9 +253,8 @@ export default function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
 
           <div className="text-container">
             <div
-              className={`text-anim ${
-                isExiting ? "anim-slide-up" : "anim-slide-down"
-              }`}
+              key={currentStepIndex} // Re-trigger animation on step change
+              className="text-anim"
               style={{
                 color: "#233830",
                 fontSize: "1.75rem",
@@ -233,7 +272,8 @@ export default function LoadingOverlay({ isLoading }: LoadingOverlayProps) {
               className="bg-[#ACC08D] h-2.5 rounded-full"
               style={{
                 width: `${progress}%`,
-                transition: "width 0.5s ease-in-out",
+                // Use a faster transition for the final jump to 100%
+                transition: progress === 100 ? "width 0.4s ease-out" : "none",
               }}
             ></div>
           </div>
