@@ -1,11 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { GeoapifyContext } from "@geoapify/react-geocoder-autocomplete";
 import type { LatLngTuple } from "leaflet";
 
 import MapControls from "@/components/MapControls";
-import MapDisplay from "@/components/MapDisplay";
+
+// Dynamically import MapDisplay with SSR turned off
+const MapDisplay = dynamic(() => import("@/components/MapDisplay"), {
+  ssr: false,
+});
 
 interface EcoStats {
   distance_km: number;
@@ -69,7 +74,7 @@ export default function Page() {
 
     const origin = `${source.properties.lat},${source.properties.lon}`;
     const dest = `${destination.properties.lat},${destination.properties.lon}`;
-    const url = `https://ecoroute-sc.onrender.com/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
+    const url = `http://127.0.0.1:8000/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
