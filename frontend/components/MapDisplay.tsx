@@ -11,6 +11,7 @@ interface MapDisplayProps {
   loading: boolean;
   ecoRoute: LatLngTuple[];
   googleRoute: LatLngTuple[];
+  logs: string[];
 }
 
 const createCustomIcon = (
@@ -39,6 +40,7 @@ export default function MapDisplay({
   loading,
   ecoRoute,
   googleRoute,
+  logs,
 }: MapDisplayProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -181,7 +183,7 @@ export default function MapDisplay({
       }}
     >
       <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-      <LoadingOverlay isLoading={loading} />
+      <LoadingOverlay isLoading={loading} logs={logs} />
     </div>
   );
 }
