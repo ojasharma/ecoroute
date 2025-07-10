@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
-import AuthProvider from "@/lib/AuthProvider";
 import Navbar from "@/components/NavBar";
 
 export const metadata: Metadata = {
@@ -20,10 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <AuthProvider>
+
           <Navbar />
           <main className="ml-20">{children}</main>
-        </AuthProvider>
       </body>
     </html>
   );

@@ -6,9 +6,18 @@ import "leaflet/dist/leaflet.css";
 import LoadingOverlay from "./LoadingOverlay";
 import StatsDisplay from "./StatsDisplay";
 
+// ✅ Define the shape of GeoPlace instead of using `any`
+interface GeoPlace {
+  properties: {
+    lat: number;
+    lon: number;
+    formatted?: string;
+  };
+}
+
 interface MapDisplayProps {
-  source: any;
-  destination: any;
+  source: GeoPlace | null;
+  destination: GeoPlace | null;
   loading: boolean;
   ecoRoute: LatLngTuple[];
   googleRoute: LatLngTuple[];
@@ -199,7 +208,7 @@ export default function MapDisplay({
         backgroundColor: "#233830",
         width: "60vw",
         height: "75vh",
-        zIndex: 0, // create stacking context
+        zIndex: 0,
       }}
     >
       <div ref={mapRef} style={{ width: "100%", height: "100%", zIndex: 0 }} />

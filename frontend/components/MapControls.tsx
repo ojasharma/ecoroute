@@ -1,4 +1,3 @@
-// components/MapControls.tsx
 "use client";
 
 import React from "react";
@@ -7,11 +6,21 @@ import "@geoapify/geocoder-autocomplete/styles/minimal.css";
 import AnimatedButton from "@/components/UI elements/FindButton";
 import GoogleMapButton from "@/components/UI elements/GMapButtom";
 
+interface GeoapifyPlace {
+  properties: {
+    lat: number;
+    lon: number;
+    formatted?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 interface MapControlsProps {
-  source: any;
-  setSource: (place: any) => void;
-  destination: any;
-  setDestination: (place: any) => void;
+  source: GeoapifyPlace | null;
+  setSource: (place: GeoapifyPlace) => void;
+  destination: GeoapifyPlace | null;
+  setDestination: (place: GeoapifyPlace) => void;
   vehicle: string;
   setVehicle: (v: string) => void;
   loading: boolean;
@@ -58,7 +67,7 @@ export default function MapControls({
           >
             <GeoapifyGeocoderAutocomplete
               placeholder="Enter source"
-              placeSelect={(place) => setSource(place)}
+              placeSelect={(place) => setSource(place as GeoapifyPlace)}
             />
           </div>
         </div>
@@ -78,7 +87,7 @@ export default function MapControls({
           >
             <GeoapifyGeocoderAutocomplete
               placeholder="Enter destination"
-              placeSelect={(place) => setDestination(place)}
+              placeSelect={(place) => setDestination(place as GeoapifyPlace)}
             />
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 
 const LOGO_URL = "/logo.png";
 
@@ -14,6 +15,7 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   onClick,
 }) => {
   const [isHovering, setIsHovering] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
 
   const handleMouseEnter = () => {
     if (!disabled) setIsHovering(true);
@@ -38,18 +40,21 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
         boxShadow: disabled ? "none" : "0 6px 20px rgba(0,0,0,0.25)",
       }}
     >
-      <img
-        src={LOGO_URL}
-        alt="logo"
-        className={`w-7 h-7 mr-3 transition-transform duration-700 ease-in-out ${
-          isHovering ? "rotate-[360deg] scale-110" : ""
-        } ${disabled ? "opacity-40 grayscale" : ""}`}
-        onError={(e) => {
-          e.currentTarget.src =
-            "https://placehold.co/28x28/233830/ACC08D?text=B";
-          e.currentTarget.onerror = null;
-        }}
-      />
+      <div className={`w-7 h-7 mr-3 relative`}>
+        <Image
+          src={
+            hasImageError
+              ? "https://placehold.co/28x28/233830/ACC08D?text=B"
+              : LOGO_URL
+          }
+          alt="logo"
+          fill
+          className={`transition-transform duration-700 ease-in-out ${
+            isHovering ? "rotate-[360deg] scale-110" : ""
+          } ${disabled ? "opacity-40 grayscale" : ""}`}
+          onError={() => setHasImageError(true)}
+        />
+      </div>
 
       <div className="relative h-6 w-28 overflow-hidden">
         <span
@@ -65,7 +70,7 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
             isHovering ? "translate-y-0" : "translate-y-full"
           }`}
         >
-          Let's Go!
+          Let&rsquo;s Go!
         </span>
       </div>
     </button>

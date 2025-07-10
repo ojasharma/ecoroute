@@ -26,9 +26,18 @@ interface Comparison {
   time_difference_minutes: number;
 }
 
+interface LocationResult {
+  properties: {
+    lat: number;
+    lon: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 export default function Page() {
-  const [source, setSource] = useState<any>(null);
-  const [destination, setDestination] = useState<any>(null);
+  const [source, setSource] = useState<LocationResult | null>(null);
+  const [destination, setDestination] = useState<LocationResult | null>(null);
   const [vehicle, setVehicle] = useState("motorcycle");
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +45,6 @@ export default function Page() {
   const [googleRoute, setGoogleRoute] = useState<LatLngTuple[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
 
-  // New state for stats
   const [ecoStats, setEcoStats] = useState<EcoStats | null>(null);
   const [googleStats, setGoogleStats] = useState<GoogleStats | null>(null);
   const [comparison, setComparison] = useState<Comparison | null>(null);
@@ -48,32 +56,32 @@ export default function Page() {
       alert("Please select both source and destination.");
       return;
     }
+
     eventSourceRef.current?.close();
     setLoading(true);
     setLogs([]);
     setEcoRoute([]);
     setGoogleRoute([]);
 
-    // Reset stats
     setEcoStats(null);
     setGoogleStats(null);
     setComparison(null);
 
     const origin = `${source.properties.lat},${source.properties.lon}`;
     const dest = `${destination.properties.lat},${destination.properties.lon}`;
-    const url = `http://127.0.0.1:8000/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
+    const url = `https://ecoroute-sc.onrender.com/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
     es.onmessage = (event) => {
       const { type, message, data } = JSON.parse(event.data);
+
       if (type === "log") {
         setLogs((l) => [...l, message]);
       } else if (type === "result") {
         setEcoRoute(data.eco_route);
         setGoogleRoute(data.google_route);
 
-        // Set the stats data
         if (data.eco_stats) {
           setEcoStats(data.eco_stats);
         }
@@ -104,6 +112,7 @@ export default function Page() {
 
   const handleGoogleMapOpen = () => {
     if (ecoRoute.length < 2) return;
+
     let pts = ecoRoute;
     const max = 25;
     if (pts.length > max) {
@@ -113,6 +122,7 @@ export default function Page() {
         pts.push(ecoRoute[ecoRoute.length - 1]);
       }
     }
+
     const origin = `${pts[0][0]},${pts[0][1]}`;
     const dest = `${pts[pts.length - 1][0]},${pts[pts.length - 1][1]}`;
     const waypoints = pts
