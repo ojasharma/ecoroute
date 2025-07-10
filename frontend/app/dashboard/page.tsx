@@ -7,6 +7,25 @@ import type { LatLngTuple } from "leaflet";
 import MapControls from "@/components/MapControls";
 import MapDisplay from "@/components/MapDisplay";
 
+interface EcoStats {
+  distance_km: number;
+  time_minutes: number;
+  time_minutes_google_estimated: number;
+  co2_kg: number;
+}
+
+interface GoogleStats {
+  distance_km: number;
+  time_minutes: number;
+  co2_kg: number;
+}
+
+interface Comparison {
+  co2_savings_kg: number;
+  co2_savings_percent: number;
+  time_difference_minutes: number;
+}
+
 export default function Page() {
   const [source, setSource] = useState<any>(null);
   const [destination, setDestination] = useState<any>(null);
@@ -16,6 +35,11 @@ export default function Page() {
   const [ecoRoute, setEcoRoute] = useState<LatLngTuple[]>([]);
   const [googleRoute, setGoogleRoute] = useState<LatLngTuple[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+
+  // New state for stats
+  const [ecoStats, setEcoStats] = useState<EcoStats | null>(null);
+  const [googleStats, setGoogleStats] = useState<GoogleStats | null>(null);
+  const [comparison, setComparison] = useState<Comparison | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -30,6 +54,11 @@ export default function Page() {
     setEcoRoute([]);
     setGoogleRoute([]);
 
+    // Reset stats
+    setEcoStats(null);
+    setGoogleStats(null);
+    setComparison(null);
+
     const origin = `${source.properties.lat},${source.properties.lon}`;
     const dest = `${destination.properties.lat},${destination.properties.lon}`;
     const url = `http://127.0.0.1:8000/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
@@ -43,6 +72,18 @@ export default function Page() {
       } else if (type === "result") {
         setEcoRoute(data.eco_route);
         setGoogleRoute(data.google_route);
+
+        // Set the stats data
+        if (data.eco_stats) {
+          setEcoStats(data.eco_stats);
+        }
+        if (data.google_stats) {
+          setGoogleStats(data.google_stats);
+        }
+        if (data.comparison) {
+          setComparison(data.comparison);
+        }
+
         setLoading(false);
         es.close();
       } else if (type === "error") {
@@ -100,7 +141,7 @@ export default function Page() {
         >
           <h1 className="text-5xl font-bold mb-4">Dashboard</h1>
           <div className="flex justify-between items-start gap-4 h-[calc(100%-60px)]">
-            <div className="flex flex-col gap-4 w-1/3 h-full">
+            <div className="flex-[1] h-full">
               <MapControls
                 source={source}
                 setSource={setSource}
@@ -114,7 +155,7 @@ export default function Page() {
                 onOpenGoogleMaps={handleGoogleMapOpen}
               />
             </div>
-            <div className="w-2/3 h-full">
+            <div className="flex-[2] h-full">
               <MapDisplay
                 source={source}
                 destination={destination}
@@ -122,6 +163,9 @@ export default function Page() {
                 ecoRoute={ecoRoute}
                 googleRoute={googleRoute}
                 logs={logs}
+                ecoStats={ecoStats}
+                googleStats={googleStats}
+                comparison={comparison}
               />
             </div>
           </div>

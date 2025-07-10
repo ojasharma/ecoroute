@@ -15,29 +15,12 @@ export default function LoadingOverlay({
 }: LoadingOverlayProps) {
   const [visible, setVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (isLoading) {
       setVisible(true);
       setIsExiting(false);
-      setProgress(0);
-
-      // Simulate a linear progress animation to 100%
-      let start: number | null = null;
-      const duration = 105000; // 1 min 45 sec
-      const step = (timestamp: number) => {
-        if (!start) start = timestamp;
-        const elapsed = timestamp - start;
-        const newProgress = Math.min((elapsed / duration) * 100, 100);
-        setProgress(newProgress);
-        if (newProgress < 100) {
-          requestAnimationFrame(step);
-        }
-      };
-      requestAnimationFrame(step);
     } else if (visible) {
-      setProgress(100);
       setTimeout(() => {
         setIsExiting(true);
         setTimeout(() => setVisible(false), 500);
@@ -113,7 +96,7 @@ export default function LoadingOverlay({
         </div>
 
         {/* Foreground Content */}
-        <div className="flex flex-col items-center justify-center z-10 space-y-8 w-4/5">
+        <div className="relative z-10 w-4/5 flex flex-col items-center justify-center space-y-8">
           <div className="rotate-logo w-20 h-20 relative">
             <Image
               src="/logo.png"
@@ -125,7 +108,7 @@ export default function LoadingOverlay({
 
           <div
             style={{
-              color: "#F0EDD1",
+              color: "#233830",
               fontSize: "1.75rem",
               fontWeight: "500",
               textAlign: "center",
@@ -134,19 +117,11 @@ export default function LoadingOverlay({
             Finding you the best EcoRoute
           </div>
 
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-700/50 rounded-full h-2.5">
-            <div
-              className="bg-[#ACC08D] h-2.5 rounded-full"
-              style={{
-                width: `${progress}%`,
-                transition: "width 1s ease-out",
-              }}
-            />
-          </div>
+          {/* Empty spacer to reserve space, so logo & text remain centered */}
+          <div className="h-24" />
 
-          {/* Log Display */}
-          <div className="w-full mt-4">
+          {/* Log Display placed absolutely */}
+          <div className="absolute bottom-6 w-full px-4">
             <LogDisplay loading={isLoading} logs={logs} />
           </div>
         </div>
