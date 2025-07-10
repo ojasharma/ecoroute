@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "ECO ROUTE",
   description: "Path finder for least CO2 emition",
   icons: {
-    icon: "/favicon.ico", 
+    icon: "/favicon.ico",
   },
 };
 
@@ -18,10 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head />
       <body className="antialiased">
-
-          <Navbar />
-          <main className="ml-20">{children}</main>
+        <Navbar />
+        <main className="ml-20">{children}</main>
       </body>
     </html>
   );
