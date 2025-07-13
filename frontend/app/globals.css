@@ -131,3 +131,37 @@
   body {
     font-family: "Poppins", sans-serif;
   }
+
+/* Inputs (when typing/selecting) */
+.geoapify-autocomplete-input,
+.geocoder-container input {
+  background-color: rgba(255,255,255,0.1) !important;
+  color: #F0EDD1 !important;
+  -webkit-text-fill-color: #F0EDD1 !important; /* overrides browser/autocomplete color */
+  border: none !important;
+}
+
+/* Placeholder text */
+.geoapify-autocomplete-input::placeholder,
+.geocoder-container input::placeholder {
+  color: #cccccc !important;
+}
+
+/* Suggestion list container */
+.geoapify-autocomplete-items,
+.geoapify-autocomplete-item {
+  background-color: #1e2a24 !important;
+  color: #F0EDD1 !important;
+}
+
+/* Highlighted suggestion hover */
+.geoapify-autocomplete-item:hover,
+.geoapify-autocomplete-item.active {
+  background-color: #344a3d !important;
+}
+
+/* For any small 'code'-like labels (country codes, etc.) */
+.geoapify-autocomplete-item .text,
+.geoapify-autocomplete-item .icon + .text {
+  color: #F0EDD1 !important;
+}
