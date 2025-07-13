@@ -74,7 +74,7 @@ export default function Page() {
 
     const origin = `${source.properties.lat},${source.properties.lon}`;
     const dest = `${destination.properties.lat},${destination.properties.lon}`;
-    const url = `localhost:8000/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
+    const url = `http://127.0.0.1:8000/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
