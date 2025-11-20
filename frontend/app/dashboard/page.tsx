@@ -74,7 +74,7 @@ export default function Page() {
 
     const origin = `${source.properties.lat},${source.properties.lon}`;
     const dest = `${destination.properties.lat},${destination.properties.lon}`;
-    const url = `http://localhost:3000/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
+    const url = `https://9622829979be.ngrok-free.app/route/stream?origin=${origin}&destination=${dest}&vehicle=${vehicle}`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
@@ -189,6 +189,7 @@ export default function Page() {
     </GeoapifyContext>
   );
 }
+
 
 
 
